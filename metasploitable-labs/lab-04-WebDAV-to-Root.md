@@ -73,7 +73,7 @@ This confirmed that a web server was running on the target system.
 dirb http://192.168.56.3
 ```
 
-![screenshot](images/lab04-01.png)
+![screenshot](images/lab04/lab04-01.png)
 
 ---
 
@@ -134,7 +134,7 @@ Authentication failed:
 #1045 - Access denied for user
 ```
 
-![screenshot](images/lab04-02.png)
+![screenshot](images/lab04/lab04-02.png)
 
 ---
 
@@ -184,7 +184,7 @@ This indicates a misconfiguration that may allow file upload.
 nano shell.php
 ```
 
-![screenshot](images/lab04-03.png)
+![screenshot](images/lab04/lab04-03.png)
 
 ---
 
@@ -239,7 +239,7 @@ http://192.168.56.3/dav/shell.php?cmd=whoami
 www-data
 ```
 
-![screenshot](images/lab04-04.png)
+![screenshot](images/lab04/lab04-04.png)
 
 ---
 
@@ -330,7 +330,7 @@ uname -a
 sudo -l
 ```
 
-![screenshot](images/lab04-05.png)
+![screenshot](images/lab04/lab04-05.png)
 
 ---
 
@@ -347,7 +347,7 @@ sudo -l
 find / -perm -4000 -type f 2>/dev/null
 ```
 
-![screenshot](images/lab04-06.png)
+![screenshot](images/lab04/lab04-06.png)
 
 ---
 

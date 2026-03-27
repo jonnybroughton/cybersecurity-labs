@@ -61,7 +61,7 @@ This was performed using the following command:
 nmap -sn 192.168.56.0/24
 ```
 
-![screenshot](images/lab01-01.png)
+![screenshot](images/lab01/lab01-01.png)
 
 ## Command Breakdown
 
@@ -173,7 +173,7 @@ PORT     STATE SERVICE     VERSION
 8009/tcp open  ajp13
 8180/tcp open  http        Apache Tomcat
 ```
-![screenshot](images/lab01-02.png)
+![screenshot](images/lab01/lab01-02.png)
 
 ---
 
